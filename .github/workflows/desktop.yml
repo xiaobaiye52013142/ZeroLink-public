@@ -1,0 +1,100 @@
+name: Desktop Build
+
+on:
+  push:
+    tags:
+      - 'desktop-v*'   # trigger with: git tag desktop-v1.0.0 && git push --tags
+  workflow_dispatch:    # or trigger manually from GitHub Actions tab
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            task: packageMsi
+            artifact: "*.msi"
+            artifact_name: ZeroLink-windows
+          - os: macos-latest
+            task: packageDmg
+            artifact: "*.dmg"
+            artifact_name: ZeroLink-macos
+          - os: ubuntu-latest
+            task: packageDeb
+            artifact: "*.deb"
+            artifact_name: ZeroLink-linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      - name: Write google-services.json
+        # The :app Android module is configured by Gradle even in a desktop-only build,
+        # and the google-services plugin requires this file to be present at config time.
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+        shell: bash
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+        shell: bash
+
+      - name: Build desktop installer
+        run: ./gradlew :desktop:${{ matrix.task }}
+        shell: bash
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: desktop/build/compose/binaries/main/**/${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "ZeroLink Desktop ${{ github.ref_name }}"
+          body: |
+            ## ZeroLink Desktop App
+
+            Download the installer for your platform below.
+
+            | Platform | File |
+            |----------|------|
+            | Windows | `ZeroLink-*.msi` |
+            | macOS | `ZeroLink-*.dmg` |
+            | Linux | `ZeroLink-*.deb` |
+
+            Install and connect to your phone over Wi-Fi or USB — no Python required.
+          files: installers/**/*
+          draft: false
+          prerelease: false

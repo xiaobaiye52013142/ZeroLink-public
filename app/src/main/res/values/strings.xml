@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ZeroLink</string>
+    <string name="accessibility_desc">Lets a paired device remotely tap, swipe and type on this screen while you are sharing it. Only active during an authorized ZeroLink session.</string>
+</resources>
