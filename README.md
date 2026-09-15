@@ -75,7 +75,7 @@ shared/     Shared protocol code (Kotlin Multiplatform)
 Pull requests are welcome. For larger changes, open an issue first to discuss the approach.
 
 Repo: https://github.com/erTesla/ZeroLink-public
-
+Playstore: https://play.google.com/store/apps/details?id=com.helium4.localscreenshare
 ## License
 
 MIT — see [LICENSE](LICENSE)
